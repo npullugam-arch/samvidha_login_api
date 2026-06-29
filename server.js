@@ -1,6 +1,6 @@
-
 const express = require("express");
 const cors = require("cors");
+
 const { loginToSamvidha } = require("./playwright");
 
 const app = express();
@@ -10,15 +10,15 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Home Route
 app.get("/", (req, res) => {
+
     res.json({
-        status: "success",
-        message: "Samvidha Login API is running 🚀"
+        success: true,
+        message: "Samvidha Login API is Running 🚀"
     });
+
 });
 
-// Login Route
 app.post("/login", async (req, res) => {
 
     try {
@@ -26,17 +26,18 @@ app.post("/login", async (req, res) => {
         const { samvidhaId, password } = req.body;
 
         if (!samvidhaId || !password) {
+
             return res.status(400).json({
                 success: false,
                 message: "Samvidha ID and Password are required."
             });
+
         }
 
-        console.log("=================================");
+        console.log("==================================");
         console.log("New Login Request");
         console.log("Samvidha ID :", samvidhaId);
-        console.log("Password    :", password);
-        console.log("=================================");
+        console.log("==================================");
 
         const result = await loginToSamvidha(
             samvidhaId,
@@ -59,5 +60,7 @@ app.post("/login", async (req, res) => {
 });
 
 app.listen(PORT, () => {
+
     console.log(`🚀 Server running on port ${PORT}`);
+
 });

@@ -1,28 +1,35 @@
-
 const { chromium } = require("playwright");
 
 async function loginToSamvidha(samvidhaId, password) {
+
     let browser;
 
     try {
+
         browser = await chromium.launch({
-            headless: true // Change to true before deploying to Render
+            headless: true,
+            args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--single-process",
+                "--no-zygote"
+            ]
         });
 
         const page = await browser.newPage();
 
         await page.goto("https://samvidha.iare.ac.in/", {
-            waitUntil: "domcontentloaded"
+            waitUntil: "networkidle",
+            timeout: 60000
         });
 
-        // Enter credentials
         await page.fill("#txt_uname", samvidhaId);
         await page.fill("#txt_pwd", password);
 
-        // Click Sign In
         await page.click("#but_submit");
 
-        // Wait for login to complete
         await page.waitForTimeout(5000);
 
         const currentUrl = page.url();
@@ -31,11 +38,11 @@ async function loginToSamvidha(samvidhaId, password) {
         console.log("Current URL :", currentUrl);
         console.log("Page Title  :", pageTitle);
 
-        // Login Success
         if (
             currentUrl.includes("/home") &&
-            pageTitle.includes("Dashboard")
+            pageTitle.toLowerCase().includes("dashboard")
         ) {
+
             const studentName = await page.locator("body").textContent();
 
             return {
@@ -45,9 +52,9 @@ async function loginToSamvidha(samvidhaId, password) {
                 pageTitle,
                 studentName
             };
+
         }
 
-        // Login Failed
         return {
             success: false,
             message: "Invalid Samvidha ID or Password"
@@ -55,7 +62,7 @@ async function loginToSamvidha(samvidhaId, password) {
 
     } catch (error) {
 
-        console.error(error);
+        console.error("Playwright Error:", error);
 
         return {
             success: false,
@@ -69,9 +76,9 @@ async function loginToSamvidha(samvidhaId, password) {
         }
 
     }
+
 }
 
 module.exports = {
     loginToSamvidha
 };
-
