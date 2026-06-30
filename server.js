@@ -1,3 +1,5 @@
+
+const { supabase } = require("./supabase");
 const express = require("express");
 const cors = require("cors");
 
@@ -40,6 +42,40 @@ app.get("/", (req, res) => {
 
 });
 
+
+
+
+
+app.get("/test-db", async (req, res) => {
+
+    try {
+
+        const { data, error } = await supabase
+            .from("student_profiles")
+            .select("*")
+            .limit(1);
+
+        if (error) {
+
+            return res.status(500).json(error);
+
+        }
+
+        return res.json({
+            success: true,
+            data
+        });
+
+    } catch (error) {
+
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+
+    }
+
+});
 // ---------------- LOGIN API ----------------
 
 app.post("/login", async (req, res) => {
