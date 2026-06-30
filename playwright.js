@@ -1,63 +1,108 @@
-const { chromium } = require("playwright");
+const fs = require("fs");
+const path = require("path");
+
+const { getPage, closePage } = require("./browser");
+
+const SESSION_FOLDER = path.join(__dirname, "sessions");
 
 async function loginToSamvidha(samvidhaId, password) {
 
-    let browser;
+    let context;
 
     try {
 
-        browser = await chromium.launch({
-            headless: true,
-            args: [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--single-process",
-                "--no-zygote"
-            ]
-        });
+        const browserData = await getPage(samvidhaId);
 
-        const page = await browser.newPage();
+        context = browserData.context;
+        const page = browserData.page;
 
-        await page.goto("https://samvidha.iare.ac.in/", {
-            waitUntil: "networkidle",
-            timeout: 60000
-        });
+        const sessionFile = path.join(
+            SESSION_FOLDER,
+            `${samvidhaId}.json`
+        );
+
+        // If session exists, try to reuse it
+        if (fs.existsSync(sessionFile)) {
+
+            console.log("✅ Trying Saved Session...");
+
+            await page.goto(
+                "https://samvidha.iare.ac.in/home",
+                {
+                    waitUntil: "domcontentloaded",
+                    timeout: 60000
+                }
+            );
+
+            if (page.url().includes("/home")) {
+
+                return {
+                    success: true,
+                    message: "Login Successful (Session Reused)",
+                    currentUrl: page.url(),
+                    pageTitle: await page.title(),
+                    studentName: await page.locator("body").textContent()
+                };
+
+            }
+
+            console.log("⚠️ Session Expired.");
+
+        }
+
+        // Fresh Login
+        console.log("🔐 Performing Fresh Login...");
+
+        await page.goto(
+            "https://samvidha.iare.ac.in/",
+            {
+                waitUntil: "domcontentloaded",
+                timeout: 30000
+            }
+        );
 
         await page.fill("#txt_uname", samvidhaId);
         await page.fill("#txt_pwd", password);
 
-        await page.click("#but_submit");
+        await Promise.all([
+            page.waitForNavigation({
+                waitUntil: "domcontentloaded",
+                timeout: 15000
+            }),
+            page.click("#but_submit")
+        ]);
 
-        await page.waitForTimeout(5000);
-
-        const currentUrl = page.url();
-        const pageTitle = await page.title();
-
-        console.log("Current URL :", currentUrl);
-        console.log("Page Title  :", pageTitle);
-
-        if (
-            currentUrl.includes("/home") &&
-            pageTitle.toLowerCase().includes("dashboard")
-        ) {
-
-            const studentName = await page.locator("body").textContent();
+        if (!page.url().includes("/home")) {
 
             return {
-                success: true,
-                message: "Login Successful",
-                currentUrl,
-                pageTitle,
-                studentName
+                success: false,
+                message: "Invalid Samvidha ID or Password"
             };
 
         }
 
+        if (!fs.existsSync(SESSION_FOLDER)) {
+
+            fs.mkdirSync(SESSION_FOLDER);
+
+        }
+
+        await context.storageState({
+
+            path: sessionFile
+
+        });
+
+        console.log("💾 Session Saved.");
+
         return {
-            success: false,
-            message: "Invalid Samvidha ID or Password"
+
+            success: true,
+            message: "Login Successful",
+            currentUrl: page.url(),
+            pageTitle: await page.title(),
+            studentName: await page.locator("body").textContent()
+
         };
 
     } catch (error) {
@@ -65,14 +110,18 @@ async function loginToSamvidha(samvidhaId, password) {
         console.error("Playwright Error:", error);
 
         return {
+
             success: false,
             message: error.message
+
         };
 
     } finally {
 
-        if (browser) {
-            await browser.close();
+        if (context) {
+
+            await closePage(context);
+
         }
 
     }
@@ -80,5 +129,7 @@ async function loginToSamvidha(samvidhaId, password) {
 }
 
 module.exports = {
+
     loginToSamvidha
+
 };

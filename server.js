@@ -3,6 +3,7 @@ const cors = require("cors");
 
 const { loginToSamvidha } = require("./playwright");
 const { getProfile } = require("./profile");
+const { initBrowser, closeBrowser } = require("./browser");
 
 const app = express();
 
@@ -11,7 +12,25 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Home Route
+// ---------------- Initialize Browser ----------------
+
+(async () => {
+
+    try {
+
+        await initBrowser();
+        console.log("✅ Playwright Browser Initialized");
+
+    } catch (error) {
+
+        console.error("❌ Failed to initialize browser:", error);
+
+    }
+
+})();
+
+// ---------------- Home Route ----------------
+
 app.get("/", (req, res) => {
 
     res.json({
@@ -105,8 +124,42 @@ app.post("/profile", async (req, res) => {
 
 });
 
-app.listen(PORT, () => {
+// ---------------- Start Server ----------------
+
+const server = app.listen(PORT, () => {
 
     console.log(`🚀 Server running on port ${PORT}`);
+
+});
+
+// ---------------- Graceful Shutdown ----------------
+
+process.on("SIGINT", async () => {
+
+    console.log("\n🛑 Shutting down server...");
+
+    await closeBrowser();
+
+    server.close(() => {
+
+        console.log("✅ Server Closed");
+        process.exit(0);
+
+    });
+
+});
+
+process.on("SIGTERM", async () => {
+
+    console.log("\n🛑 Shutting down server...");
+
+    await closeBrowser();
+
+    server.close(() => {
+
+        console.log("✅ Server Closed");
+        process.exit(0);
+
+    });
 
 });
